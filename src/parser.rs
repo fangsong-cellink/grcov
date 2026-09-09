@@ -2190,6 +2190,65 @@ TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_
         assert!(!func.executed);
     }
 
+    // Format version 2 (GCC 14) only adds fields to the format version 1
+    // schema (`calls`, `conditions`, `block_ids` and the block ids of
+    // branches), so it must be parsed like version 1 and without errors.
+    #[test]
+    fn test_parser_gcov_gz_format_version_2() {
+        let results = parse_gcov_gz(Path::new("./test/gcov_format_v2.gcov.json.gz")).unwrap();
+        assert_eq!(results.len(), 1);
+        let (ref source_name, ref result) = results[0];
+
+        assert_eq!(source_name, "gcov_format_v2.cpp");
+
+        assert_eq!(
+            result.lines,
+            [
+                (3, 0),
+                (4, 0),
+                (5, 0),
+                (7, 0),
+                (10, 4),
+                (11, 4),
+                (12, 2),
+                (14, 2),
+                (18, 1),
+                (19, 1),
+                (20, 5),
+                (21, 4),
+                (23, 1),
+                (24, 1)
+            ]
+            .iter()
+            .cloned()
+            .collect()
+        );
+
+        assert_eq!(
+            result.branches,
+            [
+                (4, vec![false, false]),
+                (11, vec![true, true]),
+                (20, vec![true, true])
+            ]
+            .iter()
+            .cloned()
+            .collect()
+        );
+
+        let func = result.functions.get("uncovered(int)").unwrap();
+        assert_eq!(func.start, 3);
+        assert!(!func.executed);
+
+        let func = result.functions.get("covered(int)").unwrap();
+        assert_eq!(func.start, 10);
+        assert!(func.executed);
+
+        let func = result.functions.get("main").unwrap();
+        assert_eq!(func.start, 18);
+        assert!(func.executed);
+    }
+
     #[test]
     fn test_parser_jacoco_xml_basic() {
         let mut lines: BTreeMap<u32, u64> = BTreeMap::new();
